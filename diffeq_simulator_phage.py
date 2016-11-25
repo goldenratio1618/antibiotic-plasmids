@@ -22,14 +22,11 @@ P = phage
 R = resistant to phage
 """
 
-def simulate(rS=2, rI=2, rL=2, rR=2, K = 1e8, alpha = 1e-6, c = 1e-3, lambdaP = 0.15, b = 50, gamma = 0.1, P0=100, S0 = 1e3, R0=0, tmax=300, getImax=False):
+def simulate(r=2, KS = 1e8, KI = 7e7, KR = 9e7, alpha = 1e-9, c = 1, lambdaP = 0.15, b = 100, bRP = 90, gamma = 0.1, P0=1e9, L0 = 1, S0 = 1e6, R0=1, tmax=15000, getImax=False):
     """ This method uses Euler's method to simulate the differential equations involved.
     
-        rS = growth rate of S
-        rI = growth rate of I
-        rL = growth rate of L (currently NOT implemented)
-        rR = growth rate of R
-        K = carrying capacity
+        r = growth rate
+        K* = carrying capacity of *
         alpha = reaction rate of phage and cells
         c = conversion rate of infected to lytic cells
         lambdaP = lysis rate
@@ -44,13 +41,16 @@ def simulate(rS=2, rI=2, rL=2, rR=2, K = 1e8, alpha = 1e-6, c = 1e-3, lambdaP = 
     """
     f = lambda P: rS * P**kappa/(Pcr**kappa + P**kappa) # decrease in growth rate (or increase in death rate) of S from P producing antibiotic
 
-    Sdot = lambda S, I, L, R, P: (rS * (1 - (S + I + L + R)/K) - alpha * P) * S
-    Idot = lambda S, I, L, R, P: (rI * (1 - (S + I + L + R)/K) - c) * I + alpha * S * P
-    Ldot = lambda S, I, L, R, P: c * I - lambdaP * L
-    Pdot = lambda S, I, L, R, P: b * lambdaP * L - gamma * P
-    Rdot = lambda S, I, L, R, P: rR * R * (1 - (S + I + L + R)/K)
+    Sdot = lambda S, I, L, R, P: (r * (1 - (S + I + R)/KS) - alpha * P) * S # add L back
+    #Idot = lambda S, I, L, R, P: (r * (1 - (S + I + L + R)/KI) - c) * I + alpha * S * P
+    #Ldot = lambda S, I, L, R, P: c * I - lambdaP * L
+    #Pdot = lambda S, I, L, R, P: b * lambdaP * L - gamma * P
+    Idot = lambda S, I, L, R, P: 0
+    Ldot = lambda S, I, L, R, P: bRP * alpha * L * R - gamma * L
+    Pdot = lambda S, I, L, R, P: b * alpha * P * S - gamma * P
+    Rdot = lambda S, I, L, R, P: (r * (1 - (S + I + R)/KR) - alpha * L) * R # add L back
 
-    dt = 0.001
+    dt = 0.01
     steps = ceil(tmax/dt)
 
     time = np.zeros(steps)
@@ -64,7 +64,7 @@ def simulate(rS=2, rI=2, rL=2, rR=2, K = 1e8, alpha = 1e-6, c = 1e-3, lambdaP = 
     R[0] = R0 # how many cells are already already resistant?
     S[0] = S0 # how many cells does the simulation begin with?
     I[0] = 0 # simulation starts with no infected cells
-    L[0] = 0
+    L[0] = L0
     P[0] = P0 # how many phage do we inject at the beginning
 
     for t in range(1, steps):
@@ -94,10 +94,10 @@ def simulate(rS=2, rI=2, rL=2, rR=2, K = 1e8, alpha = 1e-6, c = 1e-3, lambdaP = 
 def plotResults(time, S, I, L, R, P):
     """ Given time series for the strains, plots them all """
     plt.plot(time, S, time, I, time, L, time, R, time, P)
-    #plt.yscale('log')
+    plt.yscale('log')
     plt.title('Fractional abundances of strains')
     plt.legend(['Susceptible', 'Infected', 'Lytic', 'Resistant', 'Phage'])
-    plt.ylim([-0.01, 1e8])
+    plt.ylim([1, 1e12])
     plt.xlabel('Time (hours)')
     plt.ylabel('Strain abundances')
     plt.show()
